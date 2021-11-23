@@ -91,6 +91,8 @@ class FluwxPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,PluginRegist
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         shareHandler?.onDestroy()
         authHandler?.removeAllListeners()
+        // 防止冷启动判断错误
+        WXAPiHandler.setCoolBool(true)
     }
 
     override fun onDetachedFromActivity() {
