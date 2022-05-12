@@ -88,7 +88,7 @@ class FluwxPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         shareHandler?.onDestroy()
         authHandler?.removeAllListeners()
         // 防止冷启动判断错误
-        WXAPiHandler.setCoolBool(true)
+        WXAPiHandler.coolBoot = true
     }
 
     override fun onDetachedFromActivity() {
