@@ -104,22 +104,29 @@ FlutterMethodChannel *fluwxMethodChannel = nil;
 
         WXSubscribeMsgResp *subscribeMsgResp = (WXSubscribeMsgResp *) resp;
         NSMutableDictionary *result = [NSMutableDictionary dictionary];
-        if(subscribeMsgResp.openId != nil){
-           result[@"openid"] = subscribeMsgResp.openId;
+        NSString *openid = subscribeMsgResp.openId;
+        if(openid != nil && openid != NULL && ![openid isKindOfClass:[NSNull class]]){
+           result[@"openid"] = openid;
         }
-        if(subscribeMsgResp.openId != nil){
-           result[@"templateId"] = subscribeMsgResp.templateId;
+        
+        NSString *templateId = subscribeMsgResp.templateId;
+        if(templateId != nil && templateId != NULL && ![templateId isKindOfClass:[NSNull class]]){
+           result[@"templateId"] = templateId;
         }
-        if(subscribeMsgResp.openId != nil){
-            result[@"action"] = subscribeMsgResp.action;
+        
+        NSString *action = subscribeMsgResp.action;
+        if(action != nil && action != NULL && ![action isKindOfClass:[NSNull class]]){
+            result[@"action"] = action;
         }
-        if(subscribeMsgResp.openId != nil){
-          result[@"reserved"] = subscribeMsgResp.reserved;
+        
+        NSString *reserved = subscribeMsgResp.action;
+        if(reserved != nil && reserved != NULL && ![reserved isKindOfClass:[NSNull class]]){
+          result[@"reserved"] = reserved;
         }
-        if(subscribeMsgResp.openId != nil){
-          result[@"scene"] = @(subscribeMsgResp.scene);
-        }
-   
+        
+        UInt32 scene = subscribeMsgResp.scene;
+        result[@"scene"] = @(scene);
+
         [fluwxMethodChannel invokeMethod:@"onSubscribeMsgResp" arguments:result];
     } else if ([resp isKindOfClass:[WXLaunchMiniProgramResp class]]) {
         if ([_delegate respondsToSelector:@selector(managerDidRecvLaunchMiniProgram:)]) {
@@ -165,8 +172,7 @@ FlutterMethodChannel *fluwxMethodChannel = nil;
         };
 
         [fluwxMethodChannel invokeMethod:@"onWXOpenBusinessWebviewResponse" arguments:result];
-    }else if ([resp isKindOfClass:[WXOpenCustomerServiceResp class]])
-         {
+    }else if ([resp isKindOfClass:[WXOpenCustomerServiceResp class]]){
 
              WXOpenCustomerServiceResp *customerResp = (WXOpenCustomerServiceResp *) resp;
              NSDictionary *result = @{
@@ -178,8 +184,20 @@ FlutterMethodChannel *fluwxMethodChannel = nil;
              };
 
              [fluwxMethodChannel invokeMethod:@"onWXOpenBusinessWebviewResponse" arguments:result];
-          // 相关错误信息
-         }
+    }else if ([resp isKindOfClass:[WXOpenBusinessViewResp class]]){
+        WXOpenBusinessViewResp *openBusinessViewResp = (WXOpenBusinessViewResp *) resp;
+        NSDictionary *result = @{
+                description: [FluwxStringUtil nilToEmpty:openBusinessViewResp.description],
+                errStr: [FluwxStringUtil nilToEmpty:resp.errStr],
+                errCode: @(openBusinessViewResp.errCode),
+                @"businessType":openBusinessViewResp.businessType,
+                type: @(openBusinessViewResp.type),
+                @"extMsg":[FluwxStringUtil nilToEmpty:openBusinessViewResp.extMsg]
+        };
+
+        [fluwxMethodChannel invokeMethod:@"onOpenBusinessViewResponse" arguments:result];
+     // 相关错误信息
+    }
 }
 
 - (void)onReq:(BaseReq *)req {
@@ -201,11 +219,24 @@ FlutterMethodChannel *fluwxMethodChannel = nil;
             LaunchFromWXReq *launchReq = (LaunchFromWXReq *) req;
             [_delegate managerDidRecvLaunchFromWXReq:launchReq];
         }
+        LaunchFromWXReq *launchFromWXReq = (LaunchFromWXReq *) req;
+        WXMediaMessage *wmm = launchFromWXReq.message;
+        NSString *msg = @"";
+        if (wmm == nil || wmm == NULL || [wmm isKindOfClass:[NSNull class]]) {
+            msg = @"";
+        }else {
+            msg = wmm.messageExt;
+            if (msg == nil || msg == NULL || [msg isKindOfClass:[NSNull class]]) {
+                msg = @"";
+            }
+        }
+
+        NSDictionary *result = @{
+                @"extMsg": msg
+        };
+
+        [fluwxMethodChannel invokeMethod:@"onWXShowMessageFromWX" arguments:result];
     }
-    LaunchFromWXReq *launchFromWXReq = (LaunchFromWXReq *) req;
-    NSDictionary *result = @{
-            @"extMsg": launchFromWXReq.message.messageExt
-    };
-    [fluwxMethodChannel invokeMethod:@"onWXShowMessageFromWX" arguments:result];
+    
 }
 @end

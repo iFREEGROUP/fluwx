@@ -19,42 +19,40 @@
 package com.jarvan.fluwx.handlers
 
 import android.content.Context
+import android.util.Log
+import com.tencent.mm.opensdk.constants.Build
 import com.tencent.mm.opensdk.openapi.IWXAPI
 import com.tencent.mm.opensdk.openapi.WXAPIFactory
+import com.tencent.mm.opensdk.utils.ILog
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-object WXAPiHandler {
+object WXAPiHandler : ILog {
 
     var wxApi: IWXAPI? = null
 
-    private var context: Context? = null
+//    private var context: Context? = null
 
     private var registered: Boolean = false
 
     val wxApiRegistered get() = registered
 
     //是否为冷启动
-    private var coolBoot: Boolean = false
-    val isCoolBoot get() = coolBoot
-
-    fun setCoolBool(isCoolBoot : Boolean) {
-        coolBoot = isCoolBoot
-    }
+    var coolBoot: Boolean = false
 
     fun setupWxApi(appId: String, context: Context, force: Boolean = true): Boolean {
         if (force || !registered) {
-            setContext(context)
+//            setContext(context)
             registerWxAPIInternal(appId, context)
         }
         return registered
     }
+//
+//    fun setContext(context: Context?) {
+//        WXAPiHandler.context = context
+//    }
 
-    fun setContext(context: Context?) {
-        WXAPiHandler.context = context
-    }
-
-    fun registerApp(call: MethodCall, result: MethodChannel.Result) {
+    fun registerApp(call: MethodCall, result: MethodChannel.Result, context: Context?) {
 
         if (call.argument<Boolean?>("android") == false) {
             return
@@ -86,9 +84,79 @@ object WXAPiHandler {
         }
     }
 
+    fun checkSupportOpenBusinessView(result: MethodChannel.Result) {
+        when {
+            wxApi == null -> {
+                result.error("Unassigned WxApi", "please config  wxapi first", null)
+            }
+            wxApi?.isWXAppInstalled != true -> {
+                result.error("WeChat Not Installed", "Please install the WeChat first", null)
+            }
+            wxApi?.wxAppSupportAPI ?: 0 < Build.OPEN_BUSINESS_VIEW_SDK_INT -> {
+                result.error("WeChat Not Supported", "Please upgrade the WeChat version", null)
+            }
+            else -> {
+                result.success(true)
+            }
+        }
+    }
+
     private fun registerWxAPIInternal(appId: String, context: Context) {
         val api = WXAPIFactory.createWXAPI(context.applicationContext, appId)
         registered = api.registerApp(appId)
         wxApi = api
     }
+
+    fun startLog(call: MethodCall, result: MethodChannel.Result) {
+        wxApi?.setLogImpl(this);
+        result.success(true);
+    }
+
+    fun stopLog(call: MethodCall, result: MethodChannel.Result) {
+        wxApi?.setLogImpl(null);
+        result.success(true);
+
+    }
+
+    override fun d(p0: String?, p1: String?) {
+        when {
+            p1 != null -> {
+                Log.d(p0, p1);
+            }
+        }
+    }
+
+    override fun i(p0: String?, p1: String?) {
+        when {
+            p1 != null -> {
+                Log.d(p0, p1);
+            }
+        }
+    }
+
+    override fun e(p0: String?, p1: String?) {
+        when {
+            p1 != null -> {
+                Log.d(p0, p1);
+            }
+        }
+    }
+
+    override fun v(p0: String?, p1: String?) {
+        when {
+            p1 != null -> {
+                Log.d(p0, p1);
+            }
+        }
+    }
+
+    override fun w(p0: String?, p1: String?) {
+        when {
+            p1 != null -> {
+                Log.d(p0, p1);
+            }
+        }
+    }
 }
+
+
