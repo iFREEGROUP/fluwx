@@ -3,14 +3,20 @@
 #import "FluwxStringUtil.h"
 #import "FluwxAuthHandler.h"
 #import "FluwxShareHandler.h"
+#import "FluwxDelegate.h"
 
 @interface FluwxPlugin()<WXApiManagerDelegate>
 @property (strong,nonatomic)NSString *extMsg;
 @end
 
+typedef void(^FluwxWXReqRunnable)(void);
+
 @implementation FluwxPlugin
 FluwxAuthHandler *_fluwxAuthHandler;
 FluwxShareHandler *_fluwxShareHandler;
+BOOL _isRunning;
+FluwxWXReqRunnable _initialWXReqRunnable;
+
 
 BOOL handleOpenURLByFluwx = YES;
 
@@ -40,14 +46,23 @@ FlutterMethodChannel *channel = nil;
     if (self) {
         _fluwxAuthHandler = [[FluwxAuthHandler alloc] initWithRegistrar:registrar methodChannel:flutterMethodChannel];
         _fluwxShareHandler = [[FluwxShareHandler alloc] initWithRegistrar:registrar];
+        _isRunning = NO;
+        channel = flutterMethodChannel;
         [FluwxResponseHandler defaultManager].delegate = self;
+        
     }
     return self;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
+    _isRunning = YES;
+    
     if ([@"registerApp" isEqualToString:call.method]) {
         [self registerApp:call result:result];
+    } else if ([@"startLog" isEqualToString:call.method]) {
+        [self startLog:call result:result];
+    } else if ([@"stopLog" isEqualToString:call.method]) {
+        [self stopLog:call result:result];
     } else if ([@"isWeChatInstalled" isEqualToString:call.method]) {
         [self checkWeChatInstallation:call result:result];
     } else if ([@"sendAuth" isEqualToString:call.method]) {
@@ -68,6 +83,10 @@ FlutterMethodChannel *channel = nil;
         [self handleSubscribeWithCall:call result:result];
     } else if ([@"autoDeduct" isEqualToString:call.method]) {
         [self handleAutoDeductWithCall:call result:result];
+    } else if ([@"autoDeductV2" isEqualToString:call.method]) {
+        [self handleautoDeductV2:call result:result];
+    } else if ([@"openBusinessView" isEqualToString:call.method]) {
+        [self handleOpenBusinessView:call result:result];
     }else if([@"authByPhoneLogin" isEqualToString:call.method]){
         [_fluwxAuthHandler handleAuthByPhoneLogin:call result:result];
     }else if([@"getExtMsg" isEqualToString:call.method]){
@@ -76,7 +95,9 @@ FlutterMethodChannel *channel = nil;
         [_fluwxShareHandler handleShare:call result:result];
     } else if ([@"openWeChatCustomerServiceChat" isEqualToString:call.method]) {
         [self openWeChatCustomerServiceChat:call result:result];
-    } else {
+    } else if ([@"checkSupportOpenBusinessView" isEqualToString:call.method]) {
+        [self checkSupportOpenBusinessView:call result:result];
+    }else {
         result(FlutterMethodNotImplemented);
     }
 }
@@ -107,6 +128,27 @@ FlutterMethodChannel *channel = nil;
     result(@(isWeChatRegistered));
 }
 
+- (void)startLog:(FlutterMethodCall *)call result:(FlutterResult)result {
+    NSNumber *typeInt = call.arguments[@"logLevel"];
+    WXLogLevel logLevel = WXLogLevelDetail;
+    if ([typeInt isEqualToNumber:@1]) {
+        logLevel = WXLogLevelDetail;
+    } else if ([typeInt isEqualToNumber:@0]) {
+        logLevel = WXLogLevelNormal;
+    }
+    NSLog(@"%@",call.arguments);
+    [WXApi startLogByLevel:logLevel logBlock:^(NSString * _Nonnull log) {
+        NSLog(@"%@",log);
+    }];
+    result([NSNumber numberWithBool:true]);
+
+}
+
+- (void)stopLog:(FlutterMethodCall *)call result:(FlutterResult)result {
+    [WXApi stopLog];
+    result([NSNumber numberWithBool:true]);
+}
+
 - (void)checkWeChatInstallation:(FlutterMethodCall *)call result:(FlutterResult)result {
     result(@([WXApi isWXAppInstalled]));
 }
@@ -122,6 +164,14 @@ FlutterMethodChannel *channel = nil;
     return [WXApi sendReq:req completion:^(BOOL success) {
         result(@(success));
     }];
+}
+
+- (void)checkSupportOpenBusinessView:(FlutterMethodCall *)call result:(FlutterResult)result {
+    if(![WXApi isWXAppInstalled]){
+        result([FlutterError errorWithCode:@"WeChat Not Installed" message:@"Please install the WeChat first" details:nil]);
+    }else {
+        result(@(true));
+    }
 }
 
 - (void)handlePayment:(FlutterMethodCall *)call result:(FlutterResult)result {
@@ -198,7 +248,6 @@ FlutterMethodChannel *channel = nil;
     }];
 }
 
-
 - (void)handleAutoDeductWithCall:(FlutterMethodCall *)call result:(FlutterResult)result {
     NSMutableDictionary *paramsFromDart = [NSMutableDictionary dictionaryWithDictionary:call.arguments];
     [paramsFromDart removeObjectForKey:@"businessType"];
@@ -211,9 +260,35 @@ FlutterMethodChannel *channel = nil;
     }];
 }
 
+- (void)handleautoDeductV2:(FlutterMethodCall *)call result:(FlutterResult)result {
+    NSMutableDictionary *paramsFromDart = call.arguments[@"queryInfo"];
+//    [paramsFromDart removeObjectForKey:@"businessType"];
+    WXOpenBusinessWebViewReq *req = [[WXOpenBusinessWebViewReq alloc] init];
+    NSNumber *businessType = call.arguments[@"businessType"];
+    req.businessType = [businessType unsignedIntValue];
+    req.queryInfoDic = paramsFromDart;
+    [WXApi sendReq:req completion:^(BOOL done) {
+        result(@(done));
+    }];
+}
+
+- (void)handleOpenBusinessView:(FlutterMethodCall *)call result:(FlutterResult)result {
+    NSDictionary *params = call.arguments;
+
+    WXOpenBusinessViewReq *req = [WXOpenBusinessViewReq object];
+    NSString *businessType = [params valueForKey:@"businessType"];
+    NSString *query = [params valueForKey:@"query"];
+    req.businessType = businessType;
+    req.query = query;
+    req.extInfo = @"{\"miniProgramType\":0}";
+    [WXApi sendReq:req completion:^(BOOL done) {
+        result(@(done));
+    }];
+}
+
 - (void)handelGetExtMsgWithCall:(FlutterMethodCall *)call result:(FlutterResult)result {
-    result(self.extMsg);
-    self.extMsg=nil;
+    result([FluwxDelegate defaultManager].extMsg);
+    [FluwxDelegate defaultManager].extMsg=nil;
 }
 
 
@@ -244,7 +319,18 @@ FlutterMethodChannel *channel = nil;
 }
 
 - (void)managerDidRecvLaunchFromWXReq:(LaunchFromWXReq *)request {
-    self.extMsg = request.message.messageExt;
+    [FluwxDelegate defaultManager].extMsg = request.message.messageExt;
+//    LaunchFromWXReq *launchFromWXReq = (LaunchFromWXReq *)request;
+//
+//           if (_isRunning) {
+//               [FluwxDelegate defaultManager].extMsg = request.message.messageExt;
+//           } else {
+//               __weak typeof(self) weakSelf = self;
+//               _initialWXReqRunnable = ^() {
+//                   __strong typeof(weakSelf) strongSelf = weakSelf;
+//                   [FluwxDelegate defaultManager].extMsg = request.message.messageExt
+//               };
+//           }
 }
 
 @end
