@@ -97,9 +97,27 @@ FlutterMethodChannel *channel = nil;
         [self openWeChatCustomerServiceChat:call result:result];
     } else if ([@"checkSupportOpenBusinessView" isEqualToString:call.method]) {
         [self checkSupportOpenBusinessView:call result:result];
-    }else {
+    } else if([@"openWeChatInvoice" isEqualToString:call.method]) {
+        [self openWeChatInvoice:call result:result];
+    } else {
         result(FlutterMethodNotImplemented);
     }
+}
+
+- (void)openWeChatInvoice:(FlutterMethodCall *)call result:(FlutterResult)result {
+
+    NSString *appId = call.arguments[@"appId"];
+
+    if ([FluwxStringUtil isBlank:appId]) {
+        result([FlutterError errorWithCode:@"invalid app id" message:@"are you sure your app id is correct ? " details:appId]);
+        return;
+    }
+
+    [WXApiRequestHandler chooseInvoice: appId
+                          timestamp:[[NSDate date] timeIntervalSince1970]
+                         completion:^(BOOL done) {
+        result(@(done));
+    }];
 }
 
 - (void)registerApp:(FlutterMethodCall *)call result:(FlutterResult)result {
@@ -185,6 +203,7 @@ FlutterMethodChannel *channel = nil;
     NSString *nonceStr = call.arguments[@"nonceStr"];
     UInt32 timeStamp = [timestamp unsignedIntValue];
     NSString *sign = call.arguments[@"sign"];
+    [FluwxDelegate defaultManager].extData = call.arguments[@"extData"];
     [WXApiRequestHandler sendPayment:call.arguments[@"appId"]
                            PartnerId:partnerId
                             PrepayId:prepayId
@@ -198,7 +217,7 @@ FlutterMethodChannel *channel = nil;
 
 - (void)handleHongKongWalletPayment:(FlutterMethodCall *)call result:(FlutterResult)result {
     NSString *partnerId = call.arguments[@"prepayId"];
-    
+
     WXOpenBusinessWebViewReq *req = [[WXOpenBusinessWebViewReq alloc] init];
     req.businessType = 1;
     NSMutableDictionary *queryInfoDic = [NSMutableDictionary dictionary];

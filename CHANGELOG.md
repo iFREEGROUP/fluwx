@@ -1,3 +1,15 @@
+# 3.9.1
+* Fix issue getting extData on iOS
+
+# 3.9.0+2
+* Merge #485
+
+# 3.9.0+1
+* Merge #482
+
+# 3.9.0
+* 支持微信卡包
+
 # 3.8.5
 * Fix #471
 
